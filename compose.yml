@@ -5,8 +5,8 @@ services:
     environment:
       MYSQL_DATABASE: biblioteca_db
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_USER: cshh_admin
-      MYSQL_PASSWORD: carlos146080
+      MYSQL_USER: ${DATASOURCE_USERNAME}
+      MYSQL_PASSWORD: ${DATASOURCE_PASSWORD}
     ports:
       - '3306:3306'
     volumes:
