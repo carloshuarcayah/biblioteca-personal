@@ -14,11 +14,15 @@ import org.springframework.data.domain.Pageable;
 import pe.com.carlosh.bibliotecapersonal.author.Author;
 import pe.com.carlosh.bibliotecapersonal.author.AuthorRepository;
 import pe.com.carlosh.bibliotecapersonal.exception.ResourceNotFoundException;
+import pe.com.carlosh.bibliotecapersonal.genre.Genre;
+import pe.com.carlosh.bibliotecapersonal.genre.GenreRepository;
 
 import java.lang.reflect.Field;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,6 +37,9 @@ class BookServiceTest {
     @Mock
     private AuthorRepository authorRepository;
 
+    @Mock
+    private GenreRepository genreRepository;
+
     @InjectMocks
     private BookService bookService;
 
@@ -40,6 +47,12 @@ class BookServiceTest {
         Author author = new Author(firstName, lastName, null);
         setId(author, id);
         return author;
+    }
+
+    private static Genre genreWithId(Long id, String name) {
+        Genre genre = new Genre(name, null);
+        setId(genre, id);
+        return genre;
     }
 
     private static void setId(Object entity, Long id) {
@@ -96,7 +109,7 @@ class BookServiceTest {
             Book book = bookWith(authorWithId(1L, "Gabriel", "García Márquez"));
             Page<Book> page = new PageImpl<>(List.of(book));
 
-            when(bookRepository.searchByTitle("soledad", pageable)).thenReturn(page);
+            when(bookRepository.searchByActiveTrueAndTitleContainingIgnoreCase("soledad", pageable)).thenReturn(page);
 
             Page<Book> result = bookService.searchByTitle("soledad", pageable);
 
@@ -169,6 +182,54 @@ class BookServiceTest {
             Book result = bookService.update(1L, updated);
 
             assertThat(result.getAuthor()).isSameAs(nuevo);
+        }
+
+        @Test
+        @DisplayName("create - resuelve y asigna géneros cuando vienen en el payload")
+        void create_assignsGenres() {
+            Author author = authorWithId(1L, "J.R.R.", "Tolkien");
+            Genre fantasia = genreWithId(10L, "Fantasía");
+            Book received = bookWith(author);
+            received.replaceGenres(Set.of(fantasia));
+
+            when(authorRepository.findAuthorByIdAndActiveTrue(1L)).thenReturn(Optional.of(author));
+            when(genreRepository.findGenreByIdAndActiveTrue(10L)).thenReturn(Optional.of(fantasia));
+            when(bookRepository.save(any(Book.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            Book result = bookService.create(received);
+
+            assertThat(result.getGenres()).containsExactly(fantasia);
+        }
+
+        @Test
+        @DisplayName("addGenre - agrega un género al libro")
+        void addGenre_attachesGenre() {
+            Book book = bookWith(authorWithId(1L, "J.R.R.", "Tolkien"));
+            Genre aventura = genreWithId(20L, "Aventura");
+
+            when(bookRepository.findBookByIdAndActiveTrue(1L)).thenReturn(Optional.of(book));
+            when(genreRepository.findGenreByIdAndActiveTrue(20L)).thenReturn(Optional.of(aventura));
+            when(bookRepository.save(book)).thenReturn(book);
+
+            Book result = bookService.addGenre(1L, 20L);
+
+            assertThat(result.getGenres()).containsExactly(aventura);
+        }
+
+        @Test
+        @DisplayName("removeGenre - quita un género del libro")
+        void removeGenre_detachesGenre() {
+            Book book = bookWith(authorWithId(1L, "J.R.R.", "Tolkien"));
+            Genre aventura = genreWithId(20L, "Aventura");
+            book.addGenre(aventura);
+
+            when(bookRepository.findBookByIdAndActiveTrue(1L)).thenReturn(Optional.of(book));
+            when(genreRepository.findGenreByIdAndActiveTrue(20L)).thenReturn(Optional.of(aventura));
+            when(bookRepository.save(book)).thenReturn(book);
+
+            Book result = bookService.removeGenre(1L, 20L);
+
+            assertThat(result.getGenres()).isEmpty();
         }
 
         @Test
@@ -267,6 +328,46 @@ class BookServiceTest {
         }
 
         @Test
+        @DisplayName("create - lanza excepción si un género no existe o está inactivo")
+        void create_throwsWhenGenreMissing() {
+            Author author = authorWithId(1L, "J.R.R.", "Tolkien");
+            Genre fantasma = genreWithId(99L, "Inexistente");
+            Book received = bookWith(author);
+            received.replaceGenres(Set.of(fantasma));
+
+            when(authorRepository.findAuthorByIdAndActiveTrue(1L)).thenReturn(Optional.of(author));
+            when(genreRepository.findGenreByIdAndActiveTrue(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> bookService.create(received))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(bookRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("addGenre - lanza excepción si el género no existe")
+        void addGenre_throwsWhenGenreMissing() {
+            Book book = bookWith(authorWithId(1L, "J.R.R.", "Tolkien"));
+
+            when(bookRepository.findBookByIdAndActiveTrue(1L)).thenReturn(Optional.of(book));
+            when(genreRepository.findGenreByIdAndActiveTrue(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> bookService.addGenre(1L, 99L))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(bookRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("addGenre - lanza excepción si el libro no existe")
+        void addGenre_throwsWhenBookMissing() {
+            when(bookRepository.findBookByIdAndActiveTrue(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> bookService.addGenre(99L, 1L))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
         @DisplayName("delete - lanza excepción si el libro no existe o está inactivo")
         void delete_throwsWhenNotFound() {
             when(bookRepository.findBookByIdAndActiveTrue(99L)).thenReturn(Optional.empty());
@@ -319,6 +420,41 @@ class BookServiceTest {
 
             assertThat(result.getContent()).isEmpty();
             assertThat(result.getTotalElements()).isZero();
+        }
+
+        @Test
+        @DisplayName("update - no toca géneros existentes")
+        void update_keepsGenres() {
+            Author author = authorWithId(1L, "J.R.R.", "Tolkien");
+            Genre fantasia = genreWithId(10L, "Fantasía");
+            Book existing = bookWith(author);
+            existing.addGenre(fantasia);
+            Book updated = new Book("Nuevo título", null, null, null);
+
+            when(bookRepository.findBookByIdAndActiveTrue(1L)).thenReturn(Optional.of(existing));
+            when(bookRepository.save(existing)).thenReturn(existing);
+
+            Book result = bookService.update(1L, updated);
+
+            assertThat(result.getGenres()).containsExactly(fantasia);
+            verify(genreRepository, never()).findGenreByIdAndActiveTrue(any());
+        }
+
+        @Test
+        @DisplayName("create - ignora géneros sin id en el payload")
+        void create_ignoresGenresWithoutId() {
+            Author author = authorWithId(1L, "J.R.R.", "Tolkien");
+            Genre sinId = new Genre("Huérfano", null);
+            Book received = bookWith(author);
+            received.replaceGenres(new HashSet<>(Set.of(sinId)));
+
+            when(authorRepository.findAuthorByIdAndActiveTrue(1L)).thenReturn(Optional.of(author));
+            when(bookRepository.save(any(Book.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            Book result = bookService.create(received);
+
+            assertThat(result.getGenres()).isEmpty();
+            verify(genreRepository, never()).findGenreByIdAndActiveTrue(any());
         }
 
         @Test
