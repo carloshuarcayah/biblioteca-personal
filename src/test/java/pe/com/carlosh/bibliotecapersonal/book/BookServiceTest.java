@@ -66,7 +66,7 @@ class BookServiceTest {
     }
 
     private static Book bookWith(Author author) {
-        return new Book("Cien años de soledad", LocalDate.of(1967, 5, 30), 471, author);
+        return new Book("Cien años de soledad", LocalDate.of(1967, 5, 30), 471, null, author);
     }
 
     @Nested
@@ -154,7 +154,7 @@ class BookServiceTest {
         void update_modifiesBook() {
             Author author = authorWithId(1L, "Gabriel", "García Márquez");
             Book existing = bookWith(author);
-            Book updated = new Book("El amor en los tiempos del cólera", null, 400, null);
+            Book updated = new Book("El amor en los tiempos del cólera", null, 400, null, null);
 
             when(bookRepository.findBookByIdAndActiveTrue(1L)).thenReturn(Optional.of(existing));
             when(bookRepository.save(existing)).thenReturn(existing);
@@ -173,7 +173,7 @@ class BookServiceTest {
             Author original = authorWithId(1L, "Gabriel", "García Márquez");
             Author nuevo = authorWithId(2L, "Mario", "Vargas Llosa");
             Book existing = bookWith(original);
-            Book updated = new Book(null, null, null, nuevo);
+            Book updated = new Book(null, null, null, null, nuevo);
 
             when(bookRepository.findBookByIdAndActiveTrue(1L)).thenReturn(Optional.of(existing));
             when(authorRepository.findAuthorByIdAndActiveTrue(2L)).thenReturn(Optional.of(nuevo));
@@ -275,7 +275,7 @@ class BookServiceTest {
         @Test
         @DisplayName("create - lanza excepción si author es null")
         void create_throwsWhenAuthorNull() {
-            Book received = new Book("Sin autor", null, 100, null);
+            Book received = new Book("Sin autor", null, 100, null, null);
 
             assertThatThrownBy(() -> bookService.create(received))
                     .isInstanceOf(ResourceNotFoundException.class)
@@ -301,7 +301,7 @@ class BookServiceTest {
         @Test
         @DisplayName("update - lanza excepción si el libro no existe")
         void update_throwsWhenNotFound() {
-            Book updated = new Book("X", null, 1, authorWithId(1L, "x", "y"));
+            Book updated = new Book("X", null, 1, null, authorWithId(1L, "x", "y"));
 
             when(bookRepository.findBookByIdAndActiveTrue(99L)).thenReturn(Optional.empty());
 
@@ -316,7 +316,7 @@ class BookServiceTest {
         void update_throwsWhenNewAuthorMissing() {
             Author original = authorWithId(1L, "Gabriel", "García Márquez");
             Book existing = bookWith(original);
-            Book updated = new Book(null, null, null, authorWithId(99L, "x", "y"));
+            Book updated = new Book(null, null, null, null, authorWithId(99L, "x", "y"));
 
             when(bookRepository.findBookByIdAndActiveTrue(1L)).thenReturn(Optional.of(existing));
             when(authorRepository.findAuthorByIdAndActiveTrue(99L)).thenReturn(Optional.empty());
@@ -395,7 +395,7 @@ class BookServiceTest {
         void update_ignoresNullFields() {
             Author author = authorWithId(1L, "Gabriel", "García Márquez");
             Book existing = bookWith(author);
-            Book updated = new Book(null, null, null, null);
+            Book updated = new Book(null, null, null, null, null);
 
             when(bookRepository.findBookByIdAndActiveTrue(1L)).thenReturn(Optional.of(existing));
             when(bookRepository.save(existing)).thenReturn(existing);
@@ -429,7 +429,7 @@ class BookServiceTest {
             Genre fantasia = genreWithId(10L, "Fantasía");
             Book existing = bookWith(author);
             existing.addGenre(fantasia);
-            Book updated = new Book("Nuevo título", null, null, null);
+            Book updated = new Book("Nuevo título", null, null, null, null);
 
             when(bookRepository.findBookByIdAndActiveTrue(1L)).thenReturn(Optional.of(existing));
             when(bookRepository.save(existing)).thenReturn(existing);

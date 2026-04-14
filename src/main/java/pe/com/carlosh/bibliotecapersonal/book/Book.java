@@ -31,6 +31,8 @@ public class Book {
 
     private Integer pages;
 
+    private String coverUrl;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -53,10 +55,11 @@ public class Book {
     )
     private Set<Genre> genres = new HashSet<>();
 
-    public Book(String title, LocalDate publishedDate, Integer pages, Author author) {
+    public Book(String title, LocalDate publishedDate, Integer pages, String coverUrl, Author author) {
         this.title = title;
         this.publishedDate = publishedDate;
         this.pages = pages;
+        this.coverUrl = coverUrl;
         this.author = author;
         this.active = true;
     }
@@ -65,6 +68,7 @@ public class Book {
         if (updated.title != null) this.title = updated.title;
         if (updated.publishedDate != null) this.publishedDate = updated.publishedDate;
         if (updated.pages != null) this.pages = updated.pages;
+        if (updated.coverUrl != null) this.coverUrl = updated.coverUrl;
     }
 
     public void changeAuthor(Author author){

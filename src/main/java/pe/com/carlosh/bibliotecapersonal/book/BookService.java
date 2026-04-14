@@ -42,7 +42,7 @@ public class BookService {
     @Transactional
     public Book create(Book received) {
         Author author = resolveAuthor(received);
-        Book book = new Book(received.getTitle(), received.getPublishedDate(), received.getPages(), author);
+        Book book = new Book(received.getTitle(), received.getPublishedDate(), received.getPages(), received.getCoverUrl(), author);
         book.replaceGenres(resolveGenres(received.getGenres()));
         return bookRepository.save(book);
     }
