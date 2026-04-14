@@ -15,9 +15,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     Optional<Book> findBookByIdAndActiveTrue(Long id);
 
-    @Query("SELECT b FROM Book b WHERE b.active = true AND " +
-            "LOWER(b.title) LIKE LOWER(CONCAT('%', :title, '%'))")
-    Page<Book> searchByTitle(@Param("title") String title, Pageable pageable);
+    Page<Book> searchByActiveTrueAndTitleContainingIgnoreCase(String title, Pageable pageable);
 
     Page<Book> findByAuthorIdAndActiveTrue(Long authorId, Pageable pageable);
 }

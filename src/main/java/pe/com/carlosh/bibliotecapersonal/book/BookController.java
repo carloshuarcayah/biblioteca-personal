@@ -41,6 +41,16 @@ public class BookController {
         return bookService.update(id, updated);
     }
 
+    @PostMapping("/{id}/genres/{genreId}")
+    public Book addGenre(@PathVariable Long id, @PathVariable Long genreId) {
+        return bookService.addGenre(id, genreId);
+    }
+
+    @DeleteMapping("/{id}/genres/{genreId}")
+    public Book removeGenre(@PathVariable Long id, @PathVariable Long genreId) {
+        return bookService.removeGenre(id, genreId);
+    }
+
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         bookService.delete(id);

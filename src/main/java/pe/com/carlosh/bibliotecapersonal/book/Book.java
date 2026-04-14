@@ -7,9 +7,12 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import pe.com.carlosh.bibliotecapersonal.author.Author;
+import pe.com.carlosh.bibliotecapersonal.genre.Genre;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "books")
@@ -42,6 +45,14 @@ public class Book {
     @JoinColumn(name = "author_id", nullable = false)
     private Author author;
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "book_genres",
+            joinColumns = @JoinColumn(name = "book_id"),
+            inverseJoinColumns = @JoinColumn(name = "genre_id")
+    )
+    private Set<Genre> genres = new HashSet<>();
+
     public Book(String title, LocalDate publishedDate, Integer pages, Author author) {
         this.title = title;
         this.publishedDate = publishedDate;
@@ -58,6 +69,19 @@ public class Book {
 
     public void changeAuthor(Author author){
         this.author = author;
+    }
+
+    public void addGenre(Genre genre){
+        this.genres.add(genre);
+    }
+
+    public void removeGenre(Genre genre){
+        this.genres.remove(genre);
+    }
+
+    public void replaceGenres(Set<Genre> genres){
+        this.genres.clear();
+        if (genres != null) this.genres.addAll(genres);
     }
 
     public void enable(){

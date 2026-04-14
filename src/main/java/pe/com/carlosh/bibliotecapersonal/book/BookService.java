@@ -8,6 +8,11 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.com.carlosh.bibliotecapersonal.author.Author;
 import pe.com.carlosh.bibliotecapersonal.author.AuthorRepository;
 import pe.com.carlosh.bibliotecapersonal.exception.ResourceNotFoundException;
+import pe.com.carlosh.bibliotecapersonal.genre.Genre;
+import pe.com.carlosh.bibliotecapersonal.genre.GenreRepository;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -15,6 +20,7 @@ import pe.com.carlosh.bibliotecapersonal.exception.ResourceNotFoundException;
 public class BookService {
     private final BookRepository bookRepository;
     private final AuthorRepository authorRepository;
+    private final GenreRepository genreRepository;
 
     public Page<Book> findAll(Pageable pageable) {
         return bookRepository.findByActiveTrue(pageable);
@@ -26,7 +32,7 @@ public class BookService {
     }
 
     public Page<Book> searchByTitle(String title, Pageable pageable) {
-        return bookRepository.searchByTitle(title, pageable);
+        return bookRepository.searchByActiveTrueAndTitleContainingIgnoreCase(title, pageable);
     }
 
     public Page<Book> findByAuthor(Long authorId, Pageable pageable) {
@@ -37,6 +43,7 @@ public class BookService {
     public Book create(Book received) {
         Author author = resolveAuthor(received);
         Book book = new Book(received.getTitle(), received.getPublishedDate(), received.getPages(), author);
+        book.replaceGenres(resolveGenres(received.getGenres()));
         return bookRepository.save(book);
     }
 
@@ -52,6 +59,27 @@ public class BookService {
     }
 
     @Transactional
+    public Book addGenre(Long bookId, Long genreId) {
+        Book book = bookRepository.findBookByIdAndActiveTrue(bookId)
+                .orElseThrow(() -> new ResourceNotFoundException("Libro no encontrado"));
+        Genre genre = genreRepository.findGenreByIdAndActiveTrue(genreId)
+                .orElseThrow(() -> new ResourceNotFoundException("Genero no encontrado"));
+        book.addGenre(genre);
+        return bookRepository.save(book);
+    }
+
+    @Transactional
+    public Book removeGenre(Long bookId, Long genreId) {
+        Book book = bookRepository.findBookByIdAndActiveTrue(bookId)
+                .orElseThrow(() -> new ResourceNotFoundException("Libro no encontrado"));
+        Genre genre = genreRepository.findGenreByIdAndActiveTrue(genreId)
+                .orElseThrow(() -> new ResourceNotFoundException("Genero no encontrado"));
+
+        book.removeGenre(genre);
+        return bookRepository.save(book);
+    }
+
+    @Transactional
     public void delete(Long id) {
         Book book = bookRepository.findBookByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Libro no encontrado"));
@@ -63,6 +91,18 @@ public class BookService {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Libro no encontrado"));
         book.enable();
+    }
+
+    private Set<Genre> resolveGenres(Set<Genre> received) {
+        if (received == null || received.isEmpty()) return new HashSet<>();
+        Set<Genre> resolved = new HashSet<>();
+        for (Genre g : received) {
+            if (g.getId() == null) continue;
+            Genre found = genreRepository.findGenreByIdAndActiveTrue(g.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Genero no encontrado"));
+            resolved.add(found);
+        }
+        return resolved;
     }
 
     private Author resolveAuthor(Book received) {
